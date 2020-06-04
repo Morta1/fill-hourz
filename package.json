@@ -1,0 +1,17 @@
+{
+  "name": "fill-hourz",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "cypress": "^4.7.0",
+    "node-xlsx": "^0.15.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "node generateHours.js && cypress run --browser chrome --spec 'cypress/integration/sqlink.js'"
+  },
+  "keywords": [],
+  "author": "morta",
+  "license": "ISC"
+}
