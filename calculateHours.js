@@ -1,5 +1,6 @@
 const fs = require('fs');
 const xlsx = require('node-xlsx');
+const { format } = require('date-fns');
 
 const calculateHours = (sourceName, targetName) => {
   if (!sourceName.endsWith('.xlsx')) {
@@ -15,63 +16,80 @@ const calculateHours = (sourceName, targetName) => {
     console.log("Could not read file: " + sourceName, error);
     return error;
   }
-  let newXl = [{name: 'שעות בצורה נורמלית', data: [['תאריך', 'יום', 'כניסה', 'יציאה', 'סה"כ']]}];
+  let newXl = [{ name: 'שעות בצורה נורמלית', data: [['תאריך', 'יום', 'כניסה', 'יציאה', 'סה"כ']] }];
 
   if (shittyXl[0].data.length < 2) {
     // There isn't even one day to calculate
     return;
   }
 
-// Getting indexes of content
-  let dateIndex, dayIndex, enterIndex, totalIndex;
+  // Getting indexes of content
+  // let dateIndex, dayIndex, enterIndex, totalIndex;
+  let dateIndex, enterIndex, totalIndex;
   for (let i = 0; i < shittyXl[0].data[0].length; i++) {
     switch (shittyXl[0].data[0][i]) {
       case 'תאריך': {
         dateIndex = i;
         break;
       }
-      case 'יום': {
-        dayIndex = i;
-        break;
-      }
-      case 'כניסה1': {
+      // case 'יום': {
+      //   dayIndex = i;
+      //   break;
+      // }
+      case 'כניסה 1': {
         enterIndex = i;
         break;
       }
       case 'סה"כ לשכר(0)':
-	  case 'סה"כ לשכר': {
+      case 'סה\'\'כ לשכר': {
         totalIndex = i;
         break;
       }
     }
   }
 
+  const mayDays = {
+    1: 'א',
+    2: 'ב',
+    3: 'ג',
+    4: 'ד',
+    5: 'ה',
+  };
   let arrayForDaniel = [];
-// Now calculate and put every day
+  // Now calculate and put every day
   for (let i = 1; i < shittyXl[0].data.length; i++) {
     let objectForDaniel = {};
-    if (shittyXl[0].data[i][enterIndex] != 0) {
+    if (shittyXl[0].data[i][enterIndex]) {
       let enterTime = getTimeFormatted(shittyXl[0].data[i][enterIndex]);
       let totalTime = getTimeFormatted(shittyXl[0].data[i][totalIndex]);
-      let newDay = [shittyXl[0].data[i][dateIndex], shittyXl[0].data[i][dayIndex], enterTime];
-
+      let date = parseDate(shittyXl[0].data[i][dateIndex]);
+      let day = mayDays[date.getDay() + 1];
+      let newDay = [format(date, 'dd/MM/yyyy'), day, enterTime];
       let exitTime = calculateExitTime(enterTime, totalTime);
       newDay.push(exitTime);
 
       newDay.push(totalTime);
       newXl[0].data.push(newDay);
-      objectForDaniel = {in: enterTime, out: exitTime};
+      objectForDaniel = { in: enterTime, out: exitTime };
     }
     arrayForDaniel.push(objectForDaniel);
   }
 
-  const options = {'!cols': [{ wch: 15 }, { wch: 3 }, { wch: 10 }, { wch: 10 }, { wch: 10 } ]};
+  const options = { '!cols': [{ wch: 15 }, { wch: 3 }, { wch: 10 }, { wch: 10 }, { wch: 10 }] };
   let buffer = xlsx.build(newXl, options);
 
   fs.writeFileSync(targetName, buffer);
 
   return arrayForDaniel;
 };
+
+function parseDate(excelDate) {
+  const secondInDay = 24 * 60 * 60;
+  const missingLeapYearDay = secondInDay * 1000;
+  const delta = Number(excelDate) - (25567 + 2);
+  const parsed = delta * missingLeapYearDay;
+  return new Date(parsed);
+}
 
 function getTimeFormatted(excelTime) {
   let timeDecimal = excelTime * 24;
